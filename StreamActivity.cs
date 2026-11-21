@@ -1,6 +1,7 @@
 using Android.Content;
 using Android.Content.PM;
 using Android.Graphics;
+using Android.Util;
 using Android.Views;
 using Android.Widget;
 using GameStream.Client.Models;
@@ -25,7 +26,6 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
     private StreamClient? _client;
     private volatile H264Decoder? _decoder;
     private bool _started;
-    private bool _firstFrameShown;
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
@@ -106,19 +106,19 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
 
         client.Hello += (w, h, fps) =>
         {
+            Log.Info("GameStream", $"hello: {w}x{h} @ {fps}fps");
             RunOnUiThread(() => _surface.SetAspect(w, h));
-            _decoder = new H264Decoder(surface, w, h, fps);
+
+            var decoder = new H264Decoder(surface, w, h, fps);
+            decoder.FirstFrame += () => RunOnUiThread(() => _status.Visibility = ViewStates.Gone);
+            decoder.Error += msg => ShowStatus(msg);
+            _decoder = decoder;
+
+            RunOnUiThread(() => _status.Text = "Aguardando a imagem do jogo...");
+            _ = ShowDecoderStatsAsync(decoder, ct);
         };
 
-        client.Video += (buffer, offset, length, keyFrame) =>
-        {
-            _decoder?.Feed(buffer, offset, length, keyFrame);
-            if (!_firstFrameShown && keyFrame)
-            {
-                _firstFrameShown = true;
-                RunOnUiThread(() => _status.Visibility = ViewStates.Gone);
-            }
-        };
+        client.Video += (buffer, offset, length, keyFrame) => _decoder?.Feed(buffer, offset, length, keyFrame);
 
         client.ServerError += msg => ShowStatus("Erro do servidor: " + msg);
 
@@ -135,9 +135,32 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
         {
             ShowStatus(ex.Message);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            ShowStatus("A conexão caiu.");
+            Log.Warn("GameStream", $"sessão terminou com erro: {ex}");
+            ShowStatus($"A conexão caiu ({ex.GetType().Name}: {ex.Message}).");
+        }
+    }
+
+    /// <summary>Enquanto a imagem não aparece, mostra quantos quadros chegaram/foram exibidos (ajuda a achar o problema).</summary>
+    private async Task ShowDecoderStatsAsync(H264Decoder decoder, CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested && !decoder.HasRendered && !decoder.Failed)
+            {
+                await Task.Delay(1000, ct);
+                if (decoder.HasRendered || decoder.Failed) break;
+                RunOnUiThread(() =>
+                {
+                    if (_status.Visibility == ViewStates.Visible && !decoder.HasRendered && !decoder.Failed)
+                        _status.Text = "Aguardando a imagem do jogo...\n" + decoder.StatusLine;
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // saiu da tela
         }
     }
 
