@@ -28,12 +28,31 @@ public sealed class ButtonLayout
 
     /// <summary>Diâmetro como fração da menor dimensão da tela.</summary>
     public double Size { get; set; } = 0.12;
+
+    public ButtonLayout Clone() => new()
+    {
+        Type = Type,
+        Key = Key,
+        Keys = Keys is null ? null : new List<string>(Keys),
+        Label = Label,
+        X = X,
+        Y = Y,
+        Size = Size
+    };
+}
+
+/// <summary>Um perfil do usuário: um nome e a disposição dos botões/joystick (o que cada um envia).</summary>
+public sealed class Profile
+{
+    public string Name { get; set; } = "Perfil";
+    public List<ButtonLayout> Layout { get; set; } = new();
 }
 
 // JSON gerado em tempo de compilação: funciona com trimming no build Release.
 [JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(List<GameInfo>))]
 [JsonSerializable(typeof(List<ButtonLayout>))]
+[JsonSerializable(typeof(List<Profile>))]
 internal partial class ClientJson : JsonSerializerContext
 {
 }

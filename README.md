@@ -9,16 +9,36 @@ Cliente Android nativo (C#/.NET for Android, `net10.0-android`) do GameStream.Se
    APK de Release: `dotnet publish GameStream.Client -c Release`.
 
 ## Uso
-Informe IP, porta (5055) e o PIN mostrado no console do servidor, toque em **Buscar jogos** e escolha um jogo.
+O app tem duas telas:
+
+1. **Login**: informe IP, porta (5055) e o PIN mostrado no console do servidor e toque em **Conectar**.
+2. **Perfis**: escolha ou edite um perfil, escolha o jogo e toque em **Jogar**.
+
 O celular e o PC precisam estar na mesma rede, com a porta 5055 liberada no firewall do Windows.
 
+### Perfis
+- Até **5 perfis** por aparelho (aba "+ Novo"), cada um com nome e disposição própria dos controles.
+  Um perfil novo começa com o layout padrão do jogo escolhido.
+- Na prévia, **toque** em um controle para selecioná-lo e **arraste** para movê-lo.
+- **+ Botão** e **+ Joystick** adicionam controles (até 24 por perfil). **Layout do jogo** substitui os controles
+  pelo padrão do jogo escolhido.
+- Para cada botão você escolhe a tecla que ele envia: **números (0-9), letras (A-Z), Ctrl, Shift e Esc**; também dá
+  para trocar o texto e o tamanho. No joystick você escolhe a tecla de cada direção (cima, esquerda, baixo, direita).
+- O servidor só aceita as teclas liberadas no perfil do jogo (`allowedKeys`). Se um botão usar uma tecla que o jogo
+  escolhido não aceita, a tecla aparece em amarelo e o app mostra um aviso: o servidor vai ignorar esse botão.
+  Para liberar, adicione a tecla em `allowedKeys` do jogo no servidor.
+
 ## Estrutura
-- `MainActivity.cs`: tela de conexão e lista de jogos (`GET /games`).
+- `LoginActivity.cs`: tela 1, login no servidor (`GET /games` valida o PIN).
+- `ProfilesActivity.cs`: tela 2, perfis, editor de controles, escolha do jogo.
 - `StreamActivity.cs`: vídeo (SurfaceView + MediaCodec) e botões na tela.
 - `Net/`: `ServerApi` (HTTP) e `StreamClient` (WebSocket `/stream`).
 - `Video/H264Decoder.cs`: decodificação H.264 Annex B por hardware (com decodificadores de software de reserva).
 - `Video/AnnexB.cs`: leitura de SPS/PPS do fluxo H.264 (vai em csd-0/csd-1 do MediaCodec).
-- `Ui/ControlsView.cs`: botões e dpad com multitoque, desenhados a partir do `layout` do servidor.
+- `Ui/ControlsView.cs`: botões e joystick com multitoque; no modo de edição vira o editor (selecionar e arrastar).
+- `Ui/KeyPicker.cs`, `Ui/UiKit.cs`: janela de escolha de tecla e estilos da interface.
+- `Data/ProfileStore.cs`: perfis salvos no aparelho (JSON em SharedPreferences).
+- `Models/KeyCatalog.cs`: teclas que o usuário pode escolher.
 
 ## Se a imagem não aparecer
 Enquanto o vídeo não chega, a tela do jogo mostra uma linha com os contadores: quadros recebidos, keyframes,
