@@ -496,12 +496,12 @@ public class ProfilesActivity : Activity
         row.AddView(UiKit.Label(this, caption, 15, Color.White),
             new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1f));
 
-        var allowed = AllowedKeys();
+        var allowed = UsableKeys();
         bool notAllowed = allowed != null && !allowed.Contains(key);
         var button = UiKit.MakeButton(this, KeyCatalog.Display(key), BtnStyle.Secondary);
         button.SetMinimumWidth(UiKit.Dp(this, 96));
         if (notAllowed) button.SetTextColor(UiKit.Warning);
-        button.Click += (_, _) => KeyPicker.Show(this, caption, key, AllowedKeys(), onPick);
+        button.Click += (_, _) => KeyPicker.Show(this, caption, key, UsableKeys(), onPick);
         row.AddView(button);
         return row;
     }
@@ -514,12 +514,8 @@ public class ProfilesActivity : Activity
         return i >= 0 && i < _games.Count ? _games[i] : null;
     }
 
-    /// <summary>Teclas que o jogo escolhido aceita no servidor (null = nenhum jogo escolhido).</summary>
-    private HashSet<string>? AllowedKeys()
-    {
-        var game = CurrentGame();
-        return game is null ? null : new HashSet<string>(game.AllowedKeys, StringComparer.OrdinalIgnoreCase);
-    }
+    /// <summary>Teclas que o servidor aceita para o jogo escolhido (null = nenhum jogo escolhido).</summary>
+    private HashSet<string>? UsableKeys() => CurrentGame()?.UsableKeys();
 
     private void FillGameSpinner(string? preferredId)
     {
@@ -564,7 +560,10 @@ public class ProfilesActivity : Activity
         }
     }
 
-    /// <summary>Avisa quais teclas do perfil o jogo escolhido não aceita (o servidor ignora essas teclas).</summary>
+    /// <summary>
+    /// Avisa quais teclas do perfil o servidor não aceita (ele ignora essas teclas) e se o perfil tem Ctrl e Esc, que o
+    /// servidor não deixa funcionar juntos.
+    /// </summary>
     private void UpdateWarning()
     {
         var game = CurrentGame();
@@ -574,24 +573,26 @@ public class ProfilesActivity : Activity
             return;
         }
 
-        var allowed = new HashSet<string>(game.AllowedKeys, StringComparer.OrdinalIgnoreCase);
+        var lines = new List<string>();
+
+        var usable = game.UsableKeys();
         var blocked = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (var c in CurrentProfile.Layout)
+        foreach (var k in KeyCatalog.KeysOf(CurrentProfile.Layout))
+            if (!usable.Contains(k)) blocked.Add(KeyCatalog.Display(k));
+
+        if (blocked.Count > 0)
         {
-            var keys = c.Type == "dpad" ? (c.Keys ?? new List<string>()) : new List<string> { c.Key ?? "" };
-            foreach (var k in keys)
-                if (k.Length > 0 && !allowed.Contains(k)) blocked.Add(KeyCatalog.Display(k));
+            lines.Add("⚠ O servidor não aceita estas teclas" + (game.HasSafeKeys ? "" : " neste jogo") + ": " +
+                      string.Join(", ", blocked) + ". Os botões que as usam não vão funcionar.");
         }
 
-        if (blocked.Count == 0)
+        if (KeyCatalog.HasBlockedCombo(CurrentProfile.Layout))
         {
-            _warning.Visibility = ViewStates.Gone;
-            return;
+            lines.Add("⚠ Ctrl e Esc não funcionam juntos: o servidor bloqueia essa combinação (ela abriria o menu Iniciar do Windows).");
         }
 
-        _warning.Text = "⚠ O servidor não aceita estas teclas neste jogo: " + string.Join(", ", blocked) +
-                        ". Os botões que as usam não vão funcionar até o jogo liberá-las.";
-        _warning.Visibility = ViewStates.Visible;
+        _warning.Text = string.Join("\n", lines);
+        _warning.Visibility = lines.Count == 0 ? ViewStates.Gone : ViewStates.Visible;
     }
 
     private void RebuildFitChips()

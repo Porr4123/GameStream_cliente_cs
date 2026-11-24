@@ -7,7 +7,7 @@ namespace GameStream.Client.Ui;
 /// <summary>Janela para escolher a tecla de um botão: números, letras, Ctrl, Shift e Esc.</summary>
 public static class KeyPicker
 {
-    /// <param name="allowed">Teclas que o jogo escolhido aceita; as outras aparecem apagadas. null = sem aviso.</param>
+    /// <param name="allowed">Teclas que o servidor aceita; as outras aparecem apagadas. null = sem aviso.</param>
     public static void Show(Activity activity, string title, string? current, HashSet<string>? allowed, Action<string> onPicked)
     {
         AlertDialog? dialog = null;
@@ -17,9 +17,11 @@ public static class KeyPicker
         var content = new LinearLayout(activity) { Orientation = Orientation.Vertical };
         content.SetPadding(pad, UiKit.Dp(activity, 4), pad, pad);
 
-        if (allowed != null)
+        bool anyDimmed = allowed != null &&
+            KeyCatalog.Numbers.Concat(KeyCatalog.Letters).Concat(KeyCatalog.Arrows).Concat(KeyCatalog.Special).Any(k => !allowed.Contains(k));
+        if (anyDimmed)
         {
-            var hint = UiKit.Label(activity, "Teclas apagadas não são aceitas pelo jogo escolhido no servidor.", 12, UiKit.TextMuted);
+            var hint = UiKit.Label(activity, "Teclas apagadas não são aceitas pelo servidor.", 12, UiKit.TextMuted);
             hint.SetPadding(0, 0, 0, UiKit.Dp(activity, 6));
             content.AddView(hint);
         }

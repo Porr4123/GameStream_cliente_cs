@@ -10,8 +10,23 @@ public sealed class GameInfo
     public int StreamWidth { get; set; }
     public int StreamHeight { get; set; }
     public int Fps { get; set; }
+    /// <summary>Teclas que o layout padrão do jogo usa. No servidor atual é só informativa (não decide o que é injetado).</summary>
     public List<string> AllowedKeys { get; set; } = new();
+
+    /// <summary>
+    /// Lista fixa de teclas que o servidor realmente injeta (letras, números, setas, Ctrl, Shift e Esc). Servidores antigos
+    /// não mandam este campo (fica nulo); nesses, quem decide é <see cref="AllowedKeys"/>.
+    /// </summary>
+    public List<string>? SafeKeys { get; set; }
+
     public List<ButtonLayout> Layout { get; set; } = new();
+
+    /// <summary>true se o servidor informou a lista de teclas seguras (servidor atual).</summary>
+    public bool HasSafeKeys => SafeKeys is { Count: > 0 };
+
+    /// <summary>As teclas que o servidor aceita para este jogo, em maiúsculas e sem diferenciar caixa.</summary>
+    public HashSet<string> UsableKeys() =>
+        new(HasSafeKeys ? SafeKeys! : AllowedKeys, StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed class ButtonLayout

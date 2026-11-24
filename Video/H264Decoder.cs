@@ -17,7 +17,8 @@ public sealed class H264Decoder : IDisposable
 {
     private const string Tag = "GameStream";
     private const string Mime = "video/avc";
-    private const int MaxInput = 512 * 1024;
+    // Um keyframe pode chegar perto do tamanho do VBV do servidor (bufsize = teto de taxa / 2: 8000 kbps -> ~500 KB).
+    private const int MaxInput = 1024 * 1024;
     private const int MaxErrors = 20;
 
     // Nomes dos decodificadores de software do Android, usados se o padrão (hardware) falhar.

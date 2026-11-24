@@ -29,11 +29,13 @@ O app também usa a área do recorte da câmera (notch) em vez de deixar uma bar
 - Na prévia, **toque** em um controle para selecioná-lo e **arraste** para movê-lo.
 - **+ Botão** e **+ Joystick** adicionam controles (até 24 por perfil). **Layout do jogo** substitui os controles
   pelo padrão do jogo escolhido.
-- Para cada botão você escolhe a tecla que ele envia: **números (0-9), letras (A-Z), Ctrl, Shift e Esc**; também dá
+- Para cada botão você escolhe a tecla que ele envia: **números (0-9), letras (A-Z), setas, Ctrl, Shift e Esc**; também dá
   para trocar o texto e o tamanho. No joystick você escolhe a tecla de cada direção (cima, esquerda, baixo, direita).
-- O servidor só aceita as teclas liberadas no perfil do jogo (`allowedKeys`). Se um botão usar uma tecla que o jogo
-  escolhido não aceita, a tecla aparece em amarelo e o app mostra um aviso: o servidor vai ignorar esse botão.
-  Para liberar, adicione a tecla em `allowedKeys` do jogo no servidor.
+- O servidor só injeta letras, números, setas, Ctrl, Shift e Esc (a lista `safeKeys` que ele informa em `/games`).
+  Se um botão usar outra tecla, ela aparece em amarelo e o app mostra um aviso: o servidor vai ignorar esse botão.
+  Servidores antigos, sem `safeKeys`, usam a lista `allowedKeys` do jogo.
+- **Ctrl e Esc não funcionam juntos**: o servidor bloqueia essa combinação (ela abriria o menu Iniciar do Windows) e o app
+  avisa quando um perfil tem os dois.
 
 ## Estrutura
 - `LoginActivity.cs`: tela 1, login no servidor (`GET /games` valida o PIN).

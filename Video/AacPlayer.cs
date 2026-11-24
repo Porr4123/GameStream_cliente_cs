@@ -128,6 +128,7 @@ public sealed class AacPlayer : IDisposable
     {
         var info = new MediaCodec.BufferInfo();
         byte[] pcm = new byte[16 * 1024];
+        int errors = 0;
         while (_running && !_failed)
         {
             try
@@ -150,12 +151,20 @@ public sealed class AacPlayer : IDisposable
                         Interlocked.Increment(ref _played);
                     }
                     codec.ReleaseOutputBuffer(index, false);
+                    errors = 0;
                 }
             }
             catch (Exception ex)
             {
-                if (_running) Log.Warn(Tag, $"som parou: {ex.Message}");
-                return;
+                if (!_running) return; // encerrando de propósito
+                // Erro passageiro do MediaCodec/AudioTrack: tenta de novo em vez de calar o som para sempre.
+                Log.Warn(Tag, $"erro na saída do som: {ex.Message}");
+                if (++errors >= MaxFeedErrors)
+                {
+                    Log.Warn(Tag, "som desligado: erros demais na saída");
+                    return;
+                }
+                Thread.Sleep(5);
             }
         }
     }

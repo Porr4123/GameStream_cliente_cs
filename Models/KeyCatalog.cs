@@ -12,6 +12,33 @@ public static class KeyCatalog
 
     public static readonly string[] Special = { "CTRL", "SHIFT", "ESC" };
 
+    /// <summary>Todas as teclas que um layout envia (botões e as quatro direções dos joysticks), em maiúsculas.</summary>
+    public static IEnumerable<string> KeysOf(IEnumerable<ButtonLayout> layout)
+    {
+        foreach (var c in layout)
+        {
+            if (c.Type == "dpad")
+            {
+                foreach (var k in c.Keys ?? new List<string>())
+                    if (!string.IsNullOrEmpty(k)) yield return k.ToUpperInvariant();
+            }
+            else if (!string.IsNullOrEmpty(c.Key))
+            {
+                yield return c.Key.ToUpperInvariant();
+            }
+        }
+    }
+
+    /// <summary>
+    /// true se o layout tem Ctrl e Esc: o servidor recusa Esc com Ctrl apertado (e o contrário), porque Ctrl+Esc abriria
+    /// o menu Iniciar do Windows. Os dois botões funcionam sozinhos, mas nunca juntos.
+    /// </summary>
+    public static bool HasBlockedCombo(IEnumerable<ButtonLayout> layout)
+    {
+        var keys = new HashSet<string>(KeysOf(layout));
+        return keys.Contains("CTRL") && keys.Contains("ESC");
+    }
+
     /// <summary>Texto curto para mostrar no botão (o nome enviado ao servidor continua em maiúsculas).</summary>
     public static string Display(string? key)
     {
