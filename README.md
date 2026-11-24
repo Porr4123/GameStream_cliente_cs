@@ -63,3 +63,17 @@ o app tenta os de software do Android antes de desistir.
 ## Som
 
 Quando o servidor tem som ligado, o `hello` traz `"audio":{"codec":"aac","rate":48000,"ch":2}` e o servidor envia mensagens binárias `[2][0][quadro AAC cru]`. O cliente decodifica com `MediaCodec` (`audio/mp4a-latm`, AudioSpecificConfig montado a partir da taxa e dos canais) e toca num `AudioTrack` de baixa latência (`Video/AacPlayer.cs`). Os botões de volume do aparelho controlam o som. Se o aparelho não conseguir abrir o som, o vídeo segue normalmente.
+
+## Se o som não tocar
+O app relata o estado do som ao servidor, que imprime no log como `[cliente] ...`:
+- `app com diagnóstico de som; aparelho ...; hello ...; som anunciado pelo servidor`: aparece uma vez, ao conectar. **Se esta
+  linha não aparece, o APK instalado é antigo**: reinstale a versão nova. "som NÃO anunciado" significa que o servidor não
+  mandou `audio` no `hello` (som desligado ou captura que não abriu).
+- `som: decodificador AAC aberto (48000 Hz, 2 canais)`: o decodificador do aparelho abriu. Se vier `FALHOU ao abrir`, o motivo vem junto.
+- `som: Som: N quadros recebidos, N tocados, N descartados; decodificador=...; saída=...; pico=.../32768; trilha=...;
+  volume de mídia do aparelho: x/y`, aos 2 s e a cada 5 s por 30 s:
+  - **recebidos = 0**: os quadros de som não estão chegando ao app (rede ou servidor).
+  - **recebidos > 0 e tocados = 0**: o decodificador não está entregando som; veja `decodificador` e `saída`.
+  - **tocados > 0 e pico = 0**: o decodificador entrega silêncio.
+  - **pico > 0 e volume de mídia = 0**: o som chega ao aparelho, mas o volume de mídia está no mínimo (use os botões de volume).
+  - **pico > 0, volume > 0 e sem som**: problema na saída do aparelho (Bluetooth, fones, modo silencioso do fabricante).

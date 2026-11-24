@@ -126,10 +126,15 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
 
         var client = new StreamClient();
         _client = client;
+        bool audioAnnounced = false; // o AudioConfig chega antes do Hello
 
         client.Hello += (w, h, fps) =>
         {
             Log.Info("GameStream", $"hello: {w}x{h} @ {fps}fps");
+            // Sempre aparece no log do servidor: se esta linha não vier, o APK instalado é antigo (sem este diagnóstico).
+            client.SendLog($"app com diagnóstico de som; aparelho {Android.OS.Build.Manufacturer} {Android.OS.Build.Model}, " +
+                           $"Android {Android.OS.Build.VERSION.Release}; hello {w}x{h} @ {fps} fps; " +
+                           $"som {(audioAnnounced ? "anunciado pelo servidor" : "NÃO anunciado no hello")}");
             RunOnUiThread(() => _surface.SetAspect(w, h));
 
             var decoder = new H264Decoder(surface, w, h, fps);
@@ -143,6 +148,7 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
 
         client.AudioConfig += (rate, channels) =>
         {
+            audioAnnounced = true;
             var player = new AacPlayer(rate, channels);
             if (player.Start())
             {
@@ -182,14 +188,14 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
     }
 
     /// <summary>Nos primeiros 30 s manda ao servidor (log) o que o som recebeu e tocou: separa falha de rede de falha do aparelho.</summary>
-    private static async Task ReportAudioAsync(StreamClient client, AacPlayer player, CancellationToken ct)
+    private async Task ReportAudioAsync(StreamClient client, AacPlayer player, CancellationToken ct)
     {
         try
         {
             for (int i = 0; i < 6 && !ct.IsCancellationRequested; i++)
             {
-                await Task.Delay(5000, ct);
-                client.SendLog("som: " + player.Report);
+                await Task.Delay(i == 0 ? 2000 : 5000, ct);
+                client.SendLog($"som: {player.Report}; {MediaVolumeText()}");
             }
         }
         catch (OperationCanceledException)
@@ -198,7 +204,22 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
         }
     }
 
-    /// <summary>Enquanto a imagem não aparece, mostra quantos quadros chegaram/foram exibidos (ajuda a achar o problema).</summary>
+    /// <summary>Volume de mídia do aparelho: 0 deixa o som mudo mesmo com tudo funcionando.</summary>
+    private string MediaVolumeText()
+    {
+        try
+        {
+            if (GetSystemService(AudioService) is not Android.Media.AudioManager audio) return "volume de mídia: ?";
+            int volume = audio.GetStreamVolume(Android.Media.Stream.Music);
+            int max = audio.GetStreamMaxVolume(Android.Media.Stream.Music);
+            return $"volume de mídia do aparelho: {volume}/{max}" + (volume == 0 ? " (MUDO: aumente o volume de mídia)" : "");
+        }
+        catch (Exception ex)
+        {
+            return "volume de mídia: ? (" + ex.GetType().Name + ")";
+        }
+    }
+
     private async Task ShowDecoderStatsAsync(H264Decoder decoder, CancellationToken ct)
     {
         try
