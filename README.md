@@ -16,6 +16,13 @@ O app tem duas telas:
 
 O celular e o PC precisam estar na mesma rede, com a porta 5055 liberada no firewall do Windows.
 
+### Imagem na tela
+Na tela de perfis, o cartão **Imagem na tela** define como o jogo ocupa o celular: **Ajustar** (jogo inteiro, pode sobrar
+faixa preta), **Preencher** (ocupa tudo cortando as bordas) ou **Esticar** (ocupa tudo deformando).
+O app informa ao servidor o tamanho da tela e o servidor gera o vídeo já na proporção dela, mantendo a altura do perfil do
+jogo. Isso exige o servidor atualizado; com um servidor antigo o vídeo continua como antes (faixas pretas, sem erro).
+O app também usa a área do recorte da câmera (notch) em vez de deixar uma barra preta.
+
 ### Perfis
 - Até **5 perfis** por aparelho (aba "+ Novo"), cada um com nome e disposição própria dos controles.
   Um perfil novo começa com o layout padrão do jogo escolhido.

@@ -6,7 +6,7 @@ using System.Threading.Channels;
 namespace GameStream.Client.Net;
 
 /// <summary>
-/// Protocolo do servidor (ws://host:porta/stream?game=ID&amp;pin=PIN):
+/// Protocolo do servidor (ws://host:porta/stream?game=ID&amp;pin=PIN[&amp;sw=largura&amp;sh=altura&amp;fit=fit|fill|stretch]):
 ///   servidor -> cliente: texto {"t":"hello","game","w","h","fps"} | {"t":"error","msg"} | binário [1][flags][H.264 Annex B]
 ///   cliente -> servidor: texto {"t":"key","k":"Z","d":1}
 /// </summary>
@@ -29,9 +29,15 @@ public sealed class StreamClient : IDisposable
         _ws.Options.CollectHttpResponseDetails = true; // permite ler 401/404/409 do handshake
     }
 
-    public async Task RunAsync(string host, int port, string gameId, string pin, CancellationToken ct)
+    /// <param name="screenWidth">Tela do aparelho em pixels (0 = não informar). O servidor adapta a proporção do quadro a ela.</param>
+    /// <param name="fit">Como o jogo ocupa o quadro: "fit" (inteiro), "fill" (cortando as bordas) ou "stretch" (esticado).</param>
+    public async Task RunAsync(string host, int port, string gameId, string pin, CancellationToken ct,
+        int screenWidth = 0, int screenHeight = 0, string fit = "fit")
     {
-        var uri = new Uri($"ws://{host}:{port}/stream?game={Uri.EscapeDataString(gameId)}&pin={Uri.EscapeDataString(pin)}");
+        var url = $"ws://{host}:{port}/stream?game={Uri.EscapeDataString(gameId)}&pin={Uri.EscapeDataString(pin)}";
+        if (screenWidth > 0 && screenHeight > 0)
+            url += $"&sw={screenWidth}&sh={screenHeight}&fit={Uri.EscapeDataString(fit)}";
+        var uri = new Uri(url);
 
         try
         {

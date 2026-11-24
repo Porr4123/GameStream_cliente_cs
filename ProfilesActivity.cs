@@ -31,7 +31,16 @@ public class ProfilesActivity : Activity
     private int _selected = -1;     // controle selecionado no perfil atual
     private bool _suppressEvents;
 
-    private LinearLayout _chips = null!, _panel = null!;
+    private static readonly (string Mode, string Title, string Hint)[] FitModes =
+    {
+        ("fit", "Ajustar", "Mostra o jogo inteiro. Podem sobrar faixas pretas."),
+        ("fill", "Preencher", "Ocupa a tela toda cortando as bordas do jogo."),
+        ("stretch", "Esticar", "Ocupa a tela toda, mas deforma a imagem.")
+    };
+    private string _fit = "fit";
+
+    private LinearLayout _chips = null!, _panel = null!, _fitChips = null!;
+    private TextView _fitHint = null!;
     private TextView _counter = null!, _warning = null!;
     private EditText _name = null!;
     private ControlsView _preview = null!;
@@ -56,6 +65,10 @@ public class ProfilesActivity : Activity
 
         BuildUi();
         FillGameSpinner(_prefs.GetString("selGame", null));
+
+        _fit = _prefs.GetString("fit", "fit") ?? "fit";
+        if (!FitModes.Any(f => f.Mode == _fit)) _fit = "fit";
+        RebuildFitChips();
 
         if (_profiles.Count == 0)
         {
@@ -173,6 +186,18 @@ public class ProfilesActivity : Activity
         _warning.Visibility = ViewStates.Gone;
         gameCard.AddView(_warning);
         content.AddView(gameCard, CardParams());
+
+        // --- como a imagem ocupa a tela
+        var fitCard = UiKit.Card(this);
+        fitCard.AddView(UiKit.Label(this, "Imagem na tela", 13, UiKit.TextMuted, bold: true));
+        _fitChips = new LinearLayout(this) { Orientation = Orientation.Horizontal };
+        var fitChipsParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+        fitChipsParams.TopMargin = UiKit.Dp(this, 6);
+        fitCard.AddView(_fitChips, fitChipsParams);
+        _fitHint = UiKit.Label(this, "", 13, UiKit.TextMuted);
+        _fitHint.SetPadding(0, UiKit.Dp(this, 8), 0, 0);
+        fitCard.AddView(_fitHint);
+        content.AddView(fitCard, CardParams());
 
         var scroll = new ScrollView(this);
         scroll.AddView(content);
@@ -569,6 +594,25 @@ public class ProfilesActivity : Activity
         _warning.Visibility = ViewStates.Visible;
     }
 
+    private void RebuildFitChips()
+    {
+        _fitChips.RemoveAllViews();
+        foreach (var (mode, title, hint) in FitModes)
+        {
+            bool selected = mode == _fit;
+            string chosen = mode;
+            var chip = UiKit.MakeButton(this, title, selected ? BtnStyle.ChipSelected : BtnStyle.Chip);
+            chip.Click += (_, _) =>
+            {
+                _fit = chosen;
+                _prefs.Edit()!.PutString("fit", chosen)!.Apply();
+                RebuildFitChips();
+            };
+            _fitChips.AddView(chip, ChipParams());
+            if (selected) _fitHint.Text = hint;
+        }
+    }
+
     private void Play()
     {
         var game = CurrentGame();
@@ -583,6 +627,7 @@ public class ProfilesActivity : Activity
         intent.PutExtra("port", _port);
         intent.PutExtra("pin", _pin);
         intent.PutExtra("game", game.Id);
+        intent.PutExtra("fit", _fit);
         intent.PutExtra("layout", JsonSerializer.Serialize(CurrentProfile.Layout, ClientJson.Default.ListButtonLayout));
         StartActivity(intent);
     }

@@ -18,6 +18,7 @@ namespace GameStream.Client;
     Theme = "@android:style/Theme.Material.NoActionBar.Fullscreen")]
 public class StreamActivity : Activity, ISurfaceHolderCallback
 {
+    private FrameLayout _root = null!;
     private AspectSurfaceView _surface = null!;
     private ControlsView _controls = null!;
     private TextView _status = null!;
@@ -32,7 +33,15 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
         base.OnCreate(savedInstanceState);
         Window!.AddFlags(WindowManagerFlags.KeepScreenOn);
 
-        var root = new FrameLayout(this);
+        // Em celulares com recorte (notch), ocupa também a faixa do recorte em vez de deixar uma barra preta ali.
+        if (OperatingSystem.IsAndroidVersionAtLeast(28))
+        {
+            var attrs = Window.Attributes!;
+            attrs.LayoutInDisplayCutoutMode = LayoutInDisplayCutoutMode.ShortEdges;
+            Window.Attributes = attrs;
+        }
+
+        var root = _root = new FrameLayout(this);
         root.SetBackgroundColor(Color.Black);
 
         _surface = new AspectSurfaceView(this);
@@ -81,7 +90,19 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
         _cts = new CancellationTokenSource();
         var surface = holder.Surface!;
         var ct = _cts.Token;
-        _ = Task.Run(() => RunSessionAsync(surface, ct));
+
+        // Tela real em pixels: o servidor gera o quadro na proporção dela (no modo deitado, largura >= altura).
+        int w = _root.Width, h = _root.Height;
+        if (w <= 0 || h <= 0)
+        {
+            var metrics = Resources!.DisplayMetrics!;
+            w = metrics.WidthPixels;
+            h = metrics.HeightPixels;
+        }
+        int screenW = Math.Max(w, h), screenH = Math.Min(w, h);
+        string fit = Intent!.GetStringExtra("fit") ?? "fit";
+
+        _ = Task.Run(() => RunSessionAsync(surface, screenW, screenH, fit, ct));
     }
 
     public void SurfaceChanged(ISurfaceHolder holder, Android.Graphics.Format format, int width, int height)
@@ -93,7 +114,7 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
         Stop();
     }
 
-    private async Task RunSessionAsync(Surface surface, CancellationToken ct)
+    private async Task RunSessionAsync(Surface surface, int screenW, int screenH, string fit, CancellationToken ct)
     {
         var intent = Intent!;
         string host = intent.GetStringExtra("host") ?? "";
@@ -124,7 +145,7 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
 
         try
         {
-            await client.RunAsync(host, port, game, pin, ct);
+            await client.RunAsync(host, port, game, pin, ct, screenW, screenH, fit);
             if (!ct.IsCancellationRequested) ShowStatus("Desconectado do servidor.");
         }
         catch (OperationCanceledException)
