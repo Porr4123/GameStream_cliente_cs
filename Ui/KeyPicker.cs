@@ -65,6 +65,7 @@ public static class KeyPicker
 
         Section("Números", KeyCatalog.Numbers, 5);
         Section("Letras", KeyCatalog.Letters, 7);
+        Section("Setas", KeyCatalog.Arrows, 4);
         Section("Especiais", KeyCatalog.Special, 3);
 
         var scroll = new ScrollView(activity);

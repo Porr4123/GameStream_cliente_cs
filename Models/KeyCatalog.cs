@@ -1,12 +1,14 @@
 namespace GameStream.Client.Models;
 
-/// <summary>Teclas que o usuário pode escolher para um botão: números, letras, Ctrl, Shift e Esc.</summary>
+/// <summary>Teclas que o usuário pode escolher para um botão: números, letras, setas, Ctrl, Shift e Esc.</summary>
 public static class KeyCatalog
 {
     public static readonly string[] Numbers = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" };
 
     public static readonly string[] Letters =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ".Select(c => c.ToString()).ToArray();
+
+    public static readonly string[] Arrows = { "UP", "DOWN", "LEFT", "RIGHT" };
 
     public static readonly string[] Special = { "CTRL", "SHIFT", "ESC" };
 
