@@ -144,7 +144,16 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
         client.AudioConfig += (rate, channels) =>
         {
             var player = new AacPlayer(rate, channels);
-            if (player.Start()) _audio = player;
+            if (player.Start())
+            {
+                _audio = player;
+                client.SendLog($"som: decodificador AAC aberto ({rate} Hz, {channels} canais)");
+                _ = ReportAudioAsync(client, player, ct);
+            }
+            else
+            {
+                client.SendLog($"som: FALHOU ao abrir no aparelho: {player.LastError}");
+            }
         };
         client.Audio += (buffer, offset, length) => _audio?.Feed(buffer, offset, length);
 
@@ -169,6 +178,23 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
         {
             Log.Warn("GameStream", $"sessão terminou com erro: {ex}");
             ShowStatus($"A conexão caiu ({ex.GetType().Name}: {ex.Message}).");
+        }
+    }
+
+    /// <summary>Nos primeiros 30 s manda ao servidor (log) o que o som recebeu e tocou: separa falha de rede de falha do aparelho.</summary>
+    private static async Task ReportAudioAsync(StreamClient client, AacPlayer player, CancellationToken ct)
+    {
+        try
+        {
+            for (int i = 0; i < 6 && !ct.IsCancellationRequested; i++)
+            {
+                await Task.Delay(5000, ct);
+                client.SendLog("som: " + player.Report);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // saiu da tela
         }
     }
 

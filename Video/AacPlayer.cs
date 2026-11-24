@@ -33,6 +33,12 @@ public sealed class AacPlayer : IDisposable
 
     public bool Failed => _failed;
 
+    /// <summary>Motivo da falha ao abrir o som (vazio se abriu).</summary>
+    public string LastError { get; private set; } = "";
+
+    /// <summary>Estado para diagnóstico: decodificador, saída e contadores.</summary>
+    public string Report => $"{StatusLine}; aberto={(_codec != null && _track != null)}, falhou={_failed}, volume do app={(_track != null ? "ok" : "-")}";
+
     public string StatusLine => $"Som: {Interlocked.Read(ref _fed)} quadros recebidos, {Interlocked.Read(ref _played)} tocados, {Interlocked.Read(ref _dropped)} descartados";
 
     /// <summary>Abre o decodificador e a saída de áudio. Devolve false se o aparelho não conseguir (o app segue sem som).</summary>
@@ -83,6 +89,7 @@ public sealed class AacPlayer : IDisposable
         catch (Exception ex)
         {
             Log.Warn(Tag, $"som desligado: {ex}");
+            LastError = $"{ex.GetType().Name}: {ex.Message}";
             Fail();
             return false;
         }

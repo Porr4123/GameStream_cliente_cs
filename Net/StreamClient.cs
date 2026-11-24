@@ -80,6 +80,14 @@ public sealed class StreamClient : IDisposable
         _outbox.Writer.TryWrite(System.Text.Encoding.UTF8.GetBytes(json));
     }
 
+    /// <summary>Relata ao servidor algo do lado do app; cai no log do servidor como "[cliente] ...".</summary>
+    public void SendLog(string message)
+    {
+        if (_ws.State != WebSocketState.Open) return;
+        var json = $"{{\"t\":\"log\",\"msg\":\"{JsonEncodedText.Encode(message)}\"}}";
+        _outbox.Writer.TryWrite(System.Text.Encoding.UTF8.GetBytes(json));
+    }
+
     private async Task SendLoopAsync(CancellationToken ct)
     {
         // ClientWebSocket só aceita um envio por vez: o canal serializa as teclas.
