@@ -26,12 +26,14 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
     private CancellationTokenSource? _cts;
     private StreamClient? _client;
     private volatile H264Decoder? _decoder;
+    private volatile AacPlayer? _audio;
     private bool _started;
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
         Window!.AddFlags(WindowManagerFlags.KeepScreenOn);
+        VolumeControlStream = Android.Media.Stream.Music; // os botões de volume do aparelho controlam o som do jogo
 
         // Em celulares com recorte (notch), ocupa também a faixa do recorte em vez de deixar uma barra preta ali.
         if (OperatingSystem.IsAndroidVersionAtLeast(28))
@@ -139,6 +141,13 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
             _ = ShowDecoderStatsAsync(decoder, ct);
         };
 
+        client.AudioConfig += (rate, channels) =>
+        {
+            var player = new AacPlayer(rate, channels);
+            if (player.Start()) _audio = player;
+        };
+        client.Audio += (buffer, offset, length) => _audio?.Feed(buffer, offset, length);
+
         client.Video += (buffer, offset, length, keyFrame) => _decoder?.Feed(buffer, offset, length, keyFrame);
 
         client.ServerError += msg => ShowStatus("Erro do servidor: " + msg);
@@ -204,6 +213,9 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
 
         _decoder?.Dispose();
         _decoder = null;
+
+        _audio?.Dispose();
+        _audio = null;
 
         _started = false;
     }

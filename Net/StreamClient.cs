@@ -7,7 +7,8 @@ namespace GameStream.Client.Net;
 
 /// <summary>
 /// Protocolo do servidor (ws://host:porta/stream?game=ID&amp;pin=PIN[&amp;sw=largura&amp;sh=altura&amp;fit=fit|fill|stretch]):
-///   servidor -> cliente: texto {"t":"hello","game","w","h","fps"} | {"t":"error","msg"} | binário [1][flags][H.264 Annex B]
+///   servidor -> cliente: texto {"t":"hello","game","w","h","fps","audio":{"codec":"aac","rate","ch"}?} | {"t":"error","msg"}
+///                     | binário [1][flags][H.264 Annex B] ou [2][0][quadro AAC cru]
 ///   cliente -> servidor: texto {"t":"key","k":"Z","d":1}
 /// </summary>
 public sealed class StreamClient : IDisposable
@@ -17,6 +18,12 @@ public sealed class StreamClient : IDisposable
 
     /// <summary>Largura, altura e fps do vídeo.</summary>
     public event Action<int, int, int>? Hello;
+
+    /// <summary>O servidor vai enviar som: taxa (Hz) e canais. Chega antes de <see cref="Hello"/>. AAC-LC.</summary>
+    public event Action<int, int>? AudioConfig;
+
+    /// <summary>Quadro de som (AAC cru). O buffer é reaproveitado: quem recebe precisa copiar antes de retornar.</summary>
+    public event Action<byte[], int, int>? Audio;
 
     /// <summary>Quadro de vídeo. O buffer é reaproveitado: quem recebe precisa copiar antes de retornar.</summary>
     public event Action<byte[], int, int, bool>? Video;
@@ -100,6 +107,8 @@ public sealed class StreamClient : IDisposable
                 HandleText(buffer, length);
             else if (length > 2 && buffer[0] == 1)
                 Video?.Invoke(buffer, 2, length - 2, (buffer[1] & 1) != 0);
+            else if (length > 2 && buffer[0] == 2)
+                Audio?.Invoke(buffer, 2, length - 2);
         }
     }
 
@@ -112,6 +121,13 @@ public sealed class StreamClient : IDisposable
             switch (root.GetProperty("t").GetString())
             {
                 case "hello":
+                    if (root.TryGetProperty("audio", out var audio) && audio.ValueKind == JsonValueKind.Object &&
+                        string.Equals(audio.TryGetProperty("codec", out var codec) ? codec.GetString() : null, "aac", StringComparison.OrdinalIgnoreCase))
+                    {
+                        AudioConfig?.Invoke(
+                            audio.TryGetProperty("rate", out var rate) ? rate.GetInt32() : 48000,
+                            audio.TryGetProperty("ch", out var ch) ? ch.GetInt32() : 2);
+                    }
                     Hello?.Invoke(root.GetProperty("w").GetInt32(), root.GetProperty("h").GetInt32(), root.GetProperty("fps").GetInt32());
                     break;
                 case "error":

@@ -57,3 +57,7 @@ exibidos e descartados, e o nome do decodificador em uso. Isso separa os casos:
 
 O decodificador é aberto só no primeiro keyframe, com SPS/PPS no `MediaFormat`; se o de hardware recusar,
 o app tenta os de software do Android antes de desistir.
+
+## Som
+
+Quando o servidor tem som ligado, o `hello` traz `"audio":{"codec":"aac","rate":48000,"ch":2}` e o servidor envia mensagens binárias `[2][0][quadro AAC cru]`. O cliente decodifica com `MediaCodec` (`audio/mp4a-latm`, AudioSpecificConfig montado a partir da taxa e dos canais) e toca num `AudioTrack` de baixa latência (`Video/AacPlayer.cs`). Os botões de volume do aparelho controlam o som. Se o aparelho não conseguir abrir o som, o vídeo segue normalmente.
