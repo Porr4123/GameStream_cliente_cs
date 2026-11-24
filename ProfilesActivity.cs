@@ -499,7 +499,7 @@ public class ProfilesActivity : Activity
         var allowed = AllowedKeys();
         bool notAllowed = allowed != null && !allowed.Contains(key);
         var button = UiKit.MakeButton(this, KeyCatalog.Display(key), BtnStyle.Secondary);
-        button.MinimumWidth = UiKit.Dp(this, 96);
+        button.SetMinimumWidth(UiKit.Dp(this, 96));
         if (notAllowed) button.SetTextColor(UiKit.Warning);
         button.Click += (_, _) => KeyPicker.Show(this, caption, key, AllowedKeys(), onPick);
         row.AddView(button);

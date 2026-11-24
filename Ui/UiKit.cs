@@ -43,8 +43,8 @@ public static class UiKit
         var b = new Button(ctx) { Text = text };
         b.SetAllCaps(false);
         b.StateListAnimator = null;
-        b.MinimumHeight = Dp(ctx, 44);
-        b.MinimumWidth = 0;
+        b.SetMinimumHeight(Dp(ctx, 44));
+        b.SetMinimumWidth(0);
 
         Color fill, textColor = Color.White;
         Color? stroke = null;

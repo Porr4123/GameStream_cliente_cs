@@ -11,6 +11,8 @@
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
     <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
+    <PublishTrimmed>true</PublishTrimmed>
+    <RunAOTCompilation>true</RunAOTCompilation>
 
     <!-- armeabi-v7a (android-arm) e arm64-v8a (android-arm64) no mesmo APK -->
     <RuntimeIdentifiers>android-arm;android-arm64</RuntimeIdentifiers>
