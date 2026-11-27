@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.WebSockets;
 using System.Text.Json;
 using System.Threading.Channels;
+using GameStream.Client.Models;
 
 namespace GameStream.Client.Net;
 
@@ -9,7 +10,7 @@ namespace GameStream.Client.Net;
 /// Protocolo do servidor (ws://host:porta/stream?game=ID&amp;pin=PIN[&amp;sw=largura&amp;sh=altura&amp;fit=fit|fill|stretch]):
 ///   servidor -> cliente: texto {"t":"hello","game","w","h","fps","audio":{"codec":"aac","rate","ch"}?,"audioSocket":{"path","token"}?} | {"t":"error","msg"}
 ///                     | binário [1][flags][H.264 Annex B] ou [2][0][quadro AAC cru]
-///   cliente -> servidor: texto {"t":"key","k":"Z","d":1}
+///   cliente -> servidor: texto {"t":"key","k":"Z","d":1} | {"t":"mouse","a":"move|down|up|click","b":"left|right","x":0..1,"y":0..1}
 /// </summary>
 public sealed class StreamClient : IDisposable
 {
@@ -26,6 +27,12 @@ public sealed class StreamClient : IDisposable
 
     /// <summary>O servidor vai enviar som: taxa (Hz) e canais. Chega antes de <see cref="Hello"/>. AAC-LC.</summary>
     public event Action<int, int>? AudioConfig;
+
+    /// <summary>
+    /// Configuração do mouse do <c>hello</c> (chega antes de <see cref="Hello"/>). Servidor antigo, sem o campo, vem como
+    /// <see cref="MouseSettings.Disabled"/>.
+    /// </summary>
+    public event Action<MouseSettings>? MouseConfig;
 
     /// <summary>Quadro de som (AAC cru). O buffer é reaproveitado: quem recebe precisa copiar antes de retornar.</summary>
     public event Action<byte[], int, int>? Audio;
@@ -84,6 +91,18 @@ public sealed class StreamClient : IDisposable
     {
         if (_ws.State != WebSocketState.Open) return;
         var json = $"{{\"t\":\"key\",\"k\":\"{JsonEncodedText.Encode(key)}\",\"d\":{(down ? 1 : 0)}}}";
+        _outbox.Writer.TryWrite(System.Text.Encoding.UTF8.GetBytes(json));
+    }
+
+    /// <summary>
+    /// Manda um evento de mouse (move/down/up/click, botão left/right, posição 0..1 no quadro de vídeo transmitido).
+    /// Entradas inválidas (NaN, ação desconhecida) são descartadas.
+    /// </summary>
+    public void SendMouse(string action, string button, double x, double y)
+    {
+        if (_ws.State != WebSocketState.Open) return;
+        var json = MouseMessage.Build(action, button, x, y);
+        if (json is null) return;
         _outbox.Writer.TryWrite(System.Text.Encoding.UTF8.GetBytes(json));
     }
 
@@ -204,6 +223,7 @@ public sealed class StreamClient : IDisposable
                     {
                         StartAudioSocket(asock.TryGetProperty("path", out var pt) ? pt.GetString() ?? "/audio" : "/audio", token);
                     }
+                    MouseConfig?.Invoke(MouseSettings.FromHello(root));
                     Hello?.Invoke(root.GetProperty("w").GetInt32(), root.GetProperty("h").GetInt32(), root.GetProperty("fps").GetInt32());
                     break;
                 case "error":

@@ -61,6 +61,12 @@ public sealed class Profile
 {
     public string Name { get; set; } = "Perfil";
     public List<ButtonLayout> Layout { get; set; } = new();
+
+    /// <summary>
+    /// Camada de mouse na tela (toque = clique, duplo toque = clique direito, segurar = arrastar). Só vale se o servidor
+    /// também ligar o mouse para o jogo. Perfis salvos antes desta opção não têm o campo e ficam com o padrão (ligado).
+    /// </summary>
+    public bool MouseEnabled { get; set; } = true;
 }
 
 // JSON gerado em tempo de compilação: funciona com trimming no build Release.

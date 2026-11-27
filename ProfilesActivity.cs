@@ -43,6 +43,7 @@ public class ProfilesActivity : Activity
     private TextView _fitHint = null!;
     private TextView _counter = null!, _warning = null!;
     private EditText _name = null!;
+    private Switch _mouseSwitch = null!;
     private ControlsView _preview = null!;
     private Spinner _gameSpinner = null!;
     private Button _delete = null!, _play = null!;
@@ -129,6 +130,22 @@ public class ProfilesActivity : Activity
         var nameRowParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
         nameRowParams.TopMargin = UiKit.Dp(this, 6);
         nameCard.AddView(nameRow, nameRowParams);
+
+        // Mouse na tela: opção do perfil. O servidor também precisa ligar o mouse para o jogo.
+        _mouseSwitch = new Switch(this) { Text = "Mouse na tela (toque, duplo toque, segurar)" };
+        _mouseSwitch.SetTextColor(Color.White);
+        _mouseSwitch.CheckedChange += (_, e) =>
+        {
+            if (_suppressEvents) return;
+            CurrentProfile.MouseEnabled = e.IsChecked;
+            SaveProfiles();
+        };
+        var mouseParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+        mouseParams.TopMargin = UiKit.Dp(this, 12);
+        nameCard.AddView(_mouseSwitch, mouseParams);
+        nameCard.AddView(UiKit.Label(this,
+            "Toque = clique esquerdo; dois toques rápidos = clique direito; segurar = arrastar. Os botões deste perfil continuam funcionando. Só vale se o servidor ligar o mouse para o jogo.",
+            12, UiKit.TextMuted));
         content.AddView(nameCard, CardParams());
 
         // --- editor de controles
@@ -253,6 +270,7 @@ public class ProfilesActivity : Activity
 
         _suppressEvents = true;
         _name.Text = CurrentProfile.Name;
+        _mouseSwitch.Checked = CurrentProfile.MouseEnabled;
         _suppressEvents = false;
 
         RebuildChips();
@@ -629,6 +647,7 @@ public class ProfilesActivity : Activity
         intent.PutExtra("pin", _pin);
         intent.PutExtra("game", game.Id);
         intent.PutExtra("fit", _fit);
+        intent.PutExtra("mouse", CurrentProfile.MouseEnabled);
         intent.PutExtra("layout", JsonSerializer.Serialize(CurrentProfile.Layout, ClientJson.Default.ListButtonLayout));
         StartActivity(intent);
     }

@@ -16,6 +16,29 @@ O app tem duas telas:
 
 O celular e o PC precisam estar na mesma rede, com a porta 5055 liberada no firewall do Windows.
 
+### Mouse na tela
+O servidor aceita mouse isolado: ele posta os cliques direto na janela do jogo, sem mexer no mouse do PC. O app tem duas
+camadas de toque sobre o vídeo: embaixo a **camada de mouse**, em cima os **botões e o joystick** do perfil.
+
+- **Toque** (sem andar): clique esquerdo.
+- **Dois toques rápidos** (o 2º até `doubleTapMs` depois do 1º, perto dele): clique direito. O 1º toque já manda o clique
+  esquerdo na hora (sem esperar, latência zero), então no duplo toque o servidor recebe esquerdo e depois direito.
+- **Segurar** o dedo parado por `holdMs`: botão esquerdo apertado (vibra curto). Andar arrasta; levantar solta.
+- **Andar antes de `holdMs`**: só move o cursor, sem clicar.
+
+Quem manda no dedo é decidido **quando ele desce** e vale até ele levantar: o dedo que começa num botão (ou na folga em volta
+dele, ou numa caixa de exclusão do perfil) é dos botões, mesmo se arrastar; o que começa fora é do mouse, mesmo se passar por
+cima de um botão. Cada dedo é decidido separadamente, então um dedo no botão e outro no mouse funcionam juntos. Toque na
+faixa preta (fora do vídeo) não vira mouse. Só um dedo comanda o cursor por vez.
+
+O servidor liga o mouse no `hello` (`"mouse":{"enabled":true,"exclude":[...],"buttonMargin":0.02,"holdMs":350,"doubleTapMs":300}`).
+Sem esse campo (servidor antigo) ou com `enabled` falso, o app fica como antes. No app, cada perfil tem a opção
+**Mouse na tela** (padrão: ligada); ela só vale se o servidor também ligar. Mensagens enviadas:
+`{"t":"mouse","a":"move|down|up|click","b":"left|right","x":0..1,"y":0..1}`, com x e y relativos ao quadro de vídeo inteiro
+(o servidor descarta o que cai nas faixas pretas). Todo `down` é seguido de um `up`: ao levantar, cancelar o toque, ir para segundo
+plano ou perder a conexão, nenhum botão do mouse fica preso. O app avisa no log do servidor (`[cliente] mouse: ...`) se a
+camada ficou ligada. O editor de botões (tela de perfis) não usa a camada de mouse.
+
 ### Imagem na tela
 Na tela de perfis, o cartão **Imagem na tela** define como o jogo ocupa o celular: **Ajustar** (jogo inteiro, pode sobrar
 faixa preta), **Preencher** (ocupa tudo cortando as bordas) ou **Esticar** (ocupa tudo deformando).
@@ -45,6 +68,10 @@ O app também usa a área do recorte da câmera (notch) em vez de deixar uma bar
 - `Video/H264Decoder.cs`: decodificação H.264 Annex B por hardware (com decodificadores de software de reserva).
 - `Video/AnnexB.cs`: leitura de SPS/PPS do fluxo H.264 (vai em csd-0/csd-1 do MediaCodec).
 - `Ui/ControlsView.cs`: botões e joystick com multitoque; no modo de edição vira o editor (selecionar e arrastar).
+- `Ui/TouchRouter.cs`, `Ui/PointerOwnership.cs`: decidem de quem é cada dedo (botões ou mouse) quando ele desce.
+- `Ui/MouseLayerView.cs`, `Ui/MouseGestureEngine.cs`: a camada de mouse e os gestos (toque, duplo toque, segurar).
+- `Ui/ButtonHitArea.cs`: área de toque dos botões e do joystick (a mesma usada para apertar teclas).
+- `Models/MouseSettings.cs`, `Net/MouseMessage.cs`: leitura de `hello.mouse` e a mensagem `{"t":"mouse",...}`.
 - `Ui/KeyPicker.cs`, `Ui/UiKit.cs`: janela de escolha de tecla e estilos da interface.
 - `Data/ProfileStore.cs`: perfis salvos no aparelho (JSON em SharedPreferences).
 - `Models/KeyCatalog.cs`: teclas que o usuário pode escolher.

@@ -20,6 +20,7 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
 {
     private FrameLayout _root = null!;
     private AspectSurfaceView _surface = null!;
+    private MouseLayerView _mouse = null!;
     private ControlsView _controls = null!;
     private TextView _status = null!;
 
@@ -28,6 +29,7 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
     private volatile H264Decoder? _decoder;
     private volatile AacPlayer? _audio;
     private bool _started;
+    private bool _mouseUserEnabled = true; // escolha do perfil
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
@@ -43,20 +45,32 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
             Window.Attributes = attrs;
         }
 
-        var root = _root = new FrameLayout(this);
+        // O TouchRouter decide o dono de cada dedo (botões ou mouse) quando ele desce.
+        var root = new TouchRouter(this);
+        _root = root;
         root.SetBackgroundColor(Color.Black);
+        _mouseUserEnabled = Intent!.GetBooleanExtra("mouse", true);
 
         _surface = new AspectSurfaceView(this);
         _surface.Holder!.AddCallback(this);
         root.AddView(_surface, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent, GravityFlags.Center));
 
+        // Camada 1 (logo acima do vídeo): toques fora dos botões viram mouse. Só vale se o servidor ligar (hello.mouse.enabled).
+        _mouse = new MouseLayerView(this) { VideoView = _surface };
+        _mouse.Sender = (action, button, x, y) => _client?.SendMouse(action, button, x, y);
+        root.AddView(_mouse, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent));
+
+        // Camada 2 (em cima): os botões e o joystick.
         _controls = new ControlsView(this);
         _controls.KeyChanged = (key, down) => _client?.SendKey(key, down);
         var layoutJson = Intent!.GetStringExtra("layout") ?? "[]";
         _controls.SetLayout(System.Text.Json.JsonSerializer.Deserialize(layoutJson, ClientJson.Default.ListButtonLayout) ?? new List<ButtonLayout>());
         root.AddView(_controls, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent));
+        root.Controls = _controls;
+        root.Mouse = _mouse;
 
         _status = new TextView(this) { Text = "Conectando (o jogo está abrindo)..." };
         _status.SetTextColor(Color.White);
@@ -146,6 +160,16 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
             _ = ShowDecoderStatsAsync(decoder, ct);
         };
 
+        // Chega antes do Hello. Servidor antigo (sem "mouse") vem desligado: o app fica como antes.
+        client.MouseConfig += config =>
+        {
+            RunOnUiThread(() => _mouse.Configure(config, _mouseUserEnabled));
+            client.SendLog(config.Enabled
+                ? $"mouse: servidor ligou (segurar {config.HoldMs} ms, duplo toque {config.DoubleTapMs} ms, {config.Exclude.Count} caixa(s) de exclusão); " +
+                  $"no perfil do app o mouse está {(_mouseUserEnabled ? "ligado" : "DESLIGADO")}"
+                : "mouse: servidor não ligou (servidor antigo ou mouse desligado para este jogo)");
+        };
+
         client.AudioConfig += (rate, channels) =>
         {
             audioAnnounced = true;
@@ -184,6 +208,15 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
         {
             Log.Warn("GameStream", $"sessão terminou com erro: {ex}");
             ShowStatus($"A conexão caiu ({ex.GetType().Name}: {ex.Message}).");
+        }
+        finally
+        {
+            // Conexão caiu ou terminou: nenhuma tecla nem botão do mouse pode ficar preso na tela.
+            RunOnUiThread(() =>
+            {
+                _mouse?.ReleaseAll();
+                _controls?.ReleaseAll();
+            });
         }
     }
 
@@ -253,6 +286,7 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
     private void Stop()
     {
         _cts?.Cancel();
+        _mouse?.ReleaseAll();    // manda o "up" do mouse antes de fechar a conexão
         _controls?.ReleaseAll();
 
         _client?.Dispose();
@@ -265,6 +299,14 @@ public class StreamActivity : Activity, ISurfaceHolderCallback
         _audio = null;
 
         _started = false;
+    }
+
+    protected override void OnPause()
+    {
+        // App indo para segundo plano: nenhum botão do mouse nem tecla pode ficar preso.
+        _mouse?.ReleaseAll();
+        _controls?.ReleaseAll();
+        base.OnPause();
     }
 
     protected override void OnStop()

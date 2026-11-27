@@ -161,7 +161,15 @@ public class ControlsView : View
     {
         if (e is null) return false;
         if (EditMode) return HandleEditTouch(e);
+        return HandleTouch(e, null);
+    }
 
+    /// <summary>
+    /// Trata um evento de toque considerando só os dedos que esta view possui. <paramref name="owns"/> recebe o id do dedo;
+    /// null = todos. A <see cref="TouchRouter"/> usa isto para dar cada dedo à camada de botões ou à de mouse.
+    /// </summary>
+    public bool HandleTouch(MotionEvent e, Func<int, bool>? owns)
+    {
         var next = new HashSet<string>();
         var knobs = new Dictionary<ButtonLayout, (float X, float Y)>();
         var action = e.ActionMasked;
@@ -172,6 +180,7 @@ public class ControlsView : View
             for (int i = 0; i < e.PointerCount; i++)
             {
                 if (lifting && i == e.ActionIndex) continue; // esse dedo acabou de sair
+                if (owns != null && !owns(e.GetPointerId(i))) continue;
                 Collect(e.GetX(i), e.GetY(i), next, knobs);
             }
         }
@@ -181,6 +190,13 @@ public class ControlsView : View
         Invalidate(); // a bolinha do joystick se move mesmo sem mudar de tecla
         return true;
     }
+
+    /// <summary>
+    /// true se (x, y) cai na área de toque de algum botão ou joystick (a área real de <see cref="Collect"/>), mais uma
+    /// folga de <paramref name="marginPx"/> em volta. Usado para decidir se o dedo é dos botões ou do mouse.
+    /// </summary>
+    public bool HitsAnyButton(float x, float y, float marginPx) =>
+        ButtonHitArea.Hits(_layout, Width, Height, x, y, marginPx);
 
     /// <summary>Descobre quais teclas o toque em (x, y) aciona.</summary>
     private void Collect(float x, float y, HashSet<string> keys, Dictionary<ButtonLayout, (float X, float Y)> knobs)
@@ -197,7 +213,7 @@ public class ControlsView : View
 
             if (c.Type == "dpad")
             {
-                if (c.Keys is not { Count: >= 4 } k || dist > r * 1.6f) continue;
+                if (c.Keys is not { Count: >= 4 } k || dist > r * ButtonHitArea.JoystickReach) continue;
 
                 float nx = dx / r, ny = dy / r;
                 float mag = MathF.Sqrt(nx * nx + ny * ny);
@@ -210,7 +226,7 @@ public class ControlsView : View
                 if (ny > t) keys.Add(k[2]);
                 if (nx > t) keys.Add(k[3]);
             }
-            else if (c.Key is not null && dist <= r * 1.2f)
+            else if (c.Key is not null && dist <= r * ButtonHitArea.ButtonReach)
             {
                 keys.Add(c.Key);
             }
